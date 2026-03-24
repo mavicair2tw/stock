@@ -1,0 +1,28 @@
+{
+  "name": "ibelieve-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev":        "next dev",
+    "build":      "next build",
+    "start":      "next start",
+    "typecheck":  "tsc --noEmit",
+    "test:unit":  "npx tsx --test tests/unit.test.ts",
+    "test:api":   "TEST_BASE_URL=http://localhost:3000 npx tsx --test tests/api.test.ts",
+    "test":       "npm run test:unit",
+    "seed":       "npx tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.0",
+    "next":                  "^14.2.0",
+    "react":                 "^18.3.0",
+    "react-dom":             "^18.3.0"
+  },
+  "devDependencies": {
+    "@types/node":   "^20",
+    "@types/react":  "^18",
+    "dotenv":        "^16.4.5",
+    "tsx":           "^4.7.0",
+    "typescript":    "^5"
+  }
+}

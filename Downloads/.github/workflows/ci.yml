@@ -1,0 +1,49 @@
+# .github/workflows/ci.yml
+# Runs tests on push/PR and has a cron fallback for metrics recompute.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Fallback cron: every 15 min if not on Vercel
+    - cron: "*/15 * * * *"
+
+jobs:
+  # ── Unit tests (no server needed) ────────────────────────
+  unit-tests:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm ci
+      - run: npx tsx --test tests/unit.test.ts
+
+  # ── Type check ────────────────────────────────────────────
+  typecheck:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  # ── Cron fallback: recompute metrics ─────────────────────
+  # Only runs on schedule trigger (use if not on Vercel Pro)
+  recompute-metrics:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger cron endpoint
+        run: |
+          curl -s -X POST "${{ secrets.NEXT_PUBLIC_APP_URL }}/api/cron" \
+            -H "x-admin-secret: ${{ secrets.ADMIN_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail-with-body
