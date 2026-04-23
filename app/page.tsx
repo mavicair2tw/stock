@@ -21,6 +21,7 @@ export default async function HomePage() {
       action: asset.signal.action,
       timestamp: asset.updatedAt,
       reason: asset.signal.reason,
+      reasonI18n: asset.signal.reasonI18n,
     }));
 
   return (

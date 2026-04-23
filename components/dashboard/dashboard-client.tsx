@@ -308,12 +308,12 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
                   <div key={`${alert.ticker}-${alert.timestamp}`} className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <Badge variant={alert.action === 'BUY' ? 'good' : alert.action === 'SELL' ? 'danger' : 'warn'}>{alert.action}</Badge>
+                        <Badge variant={alert.action === 'BUY' ? 'good' : alert.action === 'SELL' ? 'danger' : 'warn'}>{alert.action === 'BUY' ? t.buy : alert.action === 'SELL' ? t.sell : t.watch}</Badge>
                         <span className="font-medium text-white">{alert.ticker}</span>
                       </div>
                       <span className="text-xs uppercase tracking-[0.2em] text-slate-500">{alert.timestamp}</span>
                     </div>
-                    <p className="mt-3 text-sm text-slate-300">{alert.reason}</p>
+                    <p className="mt-3 text-sm text-slate-300">{alert.reasonI18n?.[language] ?? alert.reason}</p>
                   </div>
                 ))}
               </CardContent>

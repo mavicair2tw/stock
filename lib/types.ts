@@ -51,6 +51,10 @@ export interface AlertItem {
   action: Exclude<SignalAction, 'HOLD'>;
   timestamp: string;
   reason: string;
+  reasonI18n?: {
+    'zh-TW': string;
+    en: string;
+  };
 }
 
 export interface RulesConfig {
