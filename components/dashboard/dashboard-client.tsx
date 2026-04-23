@@ -289,7 +289,7 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
                           <span className="text-sm text-slate-400">{t.confidence}</span>
                           <span className="text-lg font-semibold text-white">{asset.signal.score}</span>
                         </div>
-                        <p className="mt-3 text-sm leading-6 text-slate-300">{asset.signal.reason}</p>
+                        <p className="mt-3 text-sm leading-6 text-slate-300">{asset.signal.reasonI18n?.[language] ?? asset.signal.reason}</p>
                       </div>
                     </CardContent>
                   </Card>

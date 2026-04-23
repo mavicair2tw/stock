@@ -34,6 +34,10 @@ export interface SignalOutput {
   action: SignalAction;
   score: number;
   reason: string;
+  reasonI18n?: {
+    'zh-TW': string;
+    en: string;
+  };
   severity: SignalSeverity;
 }
 
