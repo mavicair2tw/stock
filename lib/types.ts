@@ -25,9 +25,18 @@ export interface AssetMetrics {
   discountPremium: number;
 }
 
+export interface ChartPoint {
+  label: string;
+  close: number;
+  open: number;
+  high: number;
+  low: number;
+}
+
 export interface AssetSnapshot extends AssetDefinition {
   updatedAt: string;
   metrics: AssetMetrics;
+  chartSeries?: Record<'hour' | 'day' | 'week' | 'month' | 'year' | 'all', ChartPoint[]>;
 }
 
 export interface SignalOutput {

@@ -1,5 +1,5 @@
 import { ETF_ASSETS } from '@/lib/asset-classifier';
-import { AssetCategory, AssetSnapshot, DailyBar, LiveQuote, SearchResult } from '@/lib/types';
+import { AssetCategory, AssetSnapshot, ChartPoint, DailyBar, LiveQuote, SearchResult } from '@/lib/types';
 
 const QUOTE_URL = 'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?type=ALLBUT0999&response=json';
 const CORE_TICKERS = new Set(ETF_ASSETS.map((asset) => asset.ticker));
@@ -134,6 +134,38 @@ function inferCategory(ticker: string, name: string): AssetCategory {
   return matched?.category ?? 'balanced';
 }
 
+function buildChartSeries(history: DailyBar[]): Record<'hour' | 'day' | 'week' | 'month' | 'year' | 'all', ChartPoint[]> {
+  const toChart = (bars: DailyBar[], formatter: (bar: DailyBar, index: number) => string) =>
+    bars.map((bar, index) => ({
+      label: formatter(bar, index),
+      close: bar.close,
+      open: Number((bar.close * 0.992).toFixed(2)),
+      high: Number((bar.close * 1.01).toFixed(2)),
+      low: Number((bar.close * 0.985).toFixed(2)),
+    }));
+
+  const latest = history[history.length - 1]?.close ?? 0;
+  const hour = Array.from({ length: 24 }, (_, index) => {
+    const base = latest + Math.sin(index / 3) * 0.2;
+    return {
+      label: `${String(index).padStart(2, '0')}:00`,
+      close: Number(base.toFixed(2)),
+      open: Number((base * 0.997).toFixed(2)),
+      high: Number((base * 1.003).toFixed(2)),
+      low: Number((base * 0.994).toFixed(2)),
+    };
+  });
+
+  return {
+    hour,
+    day: toChart(history.slice(-7), (bar) => bar.date.slice(5)),
+    week: toChart(history.slice(-12).filter((_, index) => index % 2 === 0), (bar) => bar.date.slice(5)),
+    month: toChart(history.slice(-30), (bar) => bar.date.slice(8)),
+    year: toChart(history.slice(-12).filter((_, index) => index % 5 === 0), (bar) => bar.date.slice(5)),
+    all: toChart(history, (bar) => bar.date.slice(5)),
+  };
+}
+
 function buildSnapshotFromQuote(quote: LiveQuote): AssetSnapshot {
   const asset = ETF_ASSETS.find((entry) => entry.ticker === quote.ticker);
   const history = buildSyntheticHistory(quote);
@@ -162,6 +194,7 @@ function buildSnapshotFromQuote(quote: LiveQuote): AssetSnapshot {
       dividendYield,
       discountPremium,
     },
+    chartSeries: buildChartSeries(history),
   };
 }
 

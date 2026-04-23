@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Activity, Bell, Globe, Plus, RefreshCcw, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { KChart } from '@/components/dashboard/k-chart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +47,19 @@ const copy = {
     discountPremium: '折溢價',
     confidence: '信心分數',
     signalFeed: '訊號紀錄',
+    chartTitle: 'K 線圖',
+    hour: '時',
+    day: '日',
+    week: '週',
+    month: '月',
+    year: '年',
+    all: '全部',
+    growth: '成長型',
+    highDividend: '高股息',
+    balanced: '平衡型',
+    bull: '多頭',
+    bear: '空頭',
+    neutral: '中性',
     rsiOversold: 'RSI 超賣',
     rsiOverbought: 'RSI 超買',
     deepDiscount: '深度折價',
@@ -85,6 +99,19 @@ const copy = {
     discountPremium: 'Discount / Premium',
     confidence: 'Confidence score',
     signalFeed: 'Signal feed',
+    chartTitle: 'K Chart',
+    hour: 'Hour',
+    day: 'Day',
+    week: 'Week',
+    month: 'Month',
+    year: 'Year',
+    all: 'All',
+    growth: 'Growth',
+    highDividend: 'High Dividend',
+    balanced: 'Balanced',
+    bull: 'Bull',
+    bear: 'Bear',
+    neutral: 'Neutral',
     rsiOversold: 'RSI oversold',
     rsiOverbought: 'RSI overbought',
     deepDiscount: 'Deep discount',
@@ -197,7 +224,7 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
             </div>
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-300">
-            <Badge variant={marketRegime === 'bull' ? 'good' : marketRegime === 'bear' ? 'danger' : 'neutral'}>{marketRegime}</Badge>
+            <Badge variant={marketRegime === 'bull' ? 'good' : marketRegime === 'bear' ? 'danger' : 'neutral'}>{marketRegime === 'bull' ? t.bull : marketRegime === 'bear' ? t.bear : t.neutral}</Badge>
             <span>{t.lastUpdated} {updatedAt}</span>
             <span className="text-slate-500">•</span>
             <span>{marketSummary}</span>
@@ -265,7 +292,7 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
                     <CardHeader>
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">{asset.category.replace('_', ' ')}</p>
+                          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">{asset.category === 'growth' ? t.growth : asset.category === 'high_dividend' ? t.highDividend : t.balanced}</p>
                           <CardTitle className="mt-2 flex items-center gap-2">{asset.ticker}{asset.isCore ? <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-300">{t.core}</span> : null}</CardTitle>
                           <p className="mt-1 text-sm text-slate-400">{asset.name}</p>
                         </div>
@@ -290,6 +317,20 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
                           <span className="text-lg font-semibold text-white">{asset.signal.score}</span>
                         </div>
                         <p className="mt-3 text-sm leading-6 text-slate-300">{asset.signal.reasonI18n?.[language] ?? asset.signal.reason}</p>
+                      </div>
+                      <div>
+                        <p className="mb-3 text-sm font-medium text-slate-300">{t.chartTitle}</p>
+                        <KChart
+                          series={asset.chartSeries}
+                          labels={{
+                            hour: t.hour,
+                            day: t.day,
+                            week: t.week,
+                            month: t.month,
+                            year: t.year,
+                            all: t.all,
+                          }}
+                        />
                       </div>
                     </CardContent>
                   </Card>
