@@ -1,8 +1,13 @@
 import { ETF_ASSETS } from '@/lib/asset-classifier';
-import { AssetSnapshot, DailyBar, LiveQuote } from '@/lib/types';
+import { AssetCategory, AssetSnapshot, DailyBar, LiveQuote, SearchResult } from '@/lib/types';
 
 const QUOTE_URL = 'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?type=ALLBUT0999&response=json';
 const ETF_TICKERS = new Set(ETF_ASSETS.map((asset) => asset.ticker));
+const CATEGORY_KEYWORDS: Array<{ category: AssetCategory; keywords: string[] }> = [
+  { category: 'growth', keywords: ['增長', '成長', 'growth', '台股增長'] },
+  { category: 'high_dividend', keywords: ['高息', '高股息', 'dividend', '收益'] },
+  { category: 'balanced', keywords: ['優選', '平衡', '豐收', 'balanced', '配置'] },
+];
 
 function parseNumber(value: string | number | null | undefined) {
   if (typeof value === 'number') return value;
@@ -118,6 +123,46 @@ function estimateDiscountPremium(ticker: string, price: number, ma20: number) {
   return Number((valuationGap * 0.35 + (anchor[ticker as keyof typeof anchor] ?? -0.5)).toFixed(2));
 }
 
+function inferCategory(ticker: string, name: string): AssetCategory {
+  const core = ETF_ASSETS.find((asset) => asset.ticker === ticker);
+  if (core) return core.category;
+
+  const normalized = `${ticker} ${name}`.toLowerCase();
+  const matched = CATEGORY_KEYWORDS.find((entry) => entry.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())));
+  return matched?.category ?? 'balanced';
+}
+
+function buildSnapshotFromQuote(quote: LiveQuote): AssetSnapshot {
+  const asset = ETF_ASSETS.find((entry) => entry.ticker === quote.ticker);
+  const history = buildSyntheticHistory(quote);
+  const ma5 = movingAverage(history, 5);
+  const ma20 = movingAverage(history, 20);
+  const ma60 = movingAverage(history, 60);
+  const rsi = computeRsi(history);
+  const previousClose = Number((quote.close - quote.change).toFixed(2));
+  const dividendYield = estimateDividendYield(quote.ticker, quote.close);
+  const discountPremium = estimateDiscountPremium(quote.ticker, quote.close, ma20);
+
+  return {
+    ticker: quote.ticker,
+    name: quote.name,
+    category: asset?.category ?? inferCategory(quote.ticker, quote.name),
+    isCore: asset?.isCore ?? false,
+    updatedAt: new Date().toISOString(),
+    metrics: {
+      price: quote.close,
+      previousClose,
+      volume: quote.volume,
+      ma5: Number(ma5.toFixed(2)),
+      ma20: Number(ma20.toFixed(2)),
+      ma60: Number(ma60.toFixed(2)),
+      rsi: Number(rsi.toFixed(1)),
+      dividendYield,
+      discountPremium,
+    },
+  };
+}
+
 export async function getLiveSnapshots(): Promise<AssetSnapshot[]> {
   const quotes = await fetchQuotes();
 
@@ -127,30 +172,24 @@ export async function getLiveSnapshots(): Promise<AssetSnapshot[]> {
       throw new Error(`Missing TWSE quote for ${asset.ticker}`);
     }
 
-    const history = buildSyntheticHistory(quote);
-    const ma5 = movingAverage(history, 5);
-    const ma20 = movingAverage(history, 20);
-    const ma60 = movingAverage(history, 60);
-    const rsi = computeRsi(history);
-    const previousClose = Number((quote.close - quote.change).toFixed(2));
-    const dividendYield = estimateDividendYield(asset.ticker, quote.close);
-    const discountPremium = estimateDiscountPremium(asset.ticker, quote.close, ma20);
-
-    return {
-      ...asset,
-      name: quote.name,
-      updatedAt: new Date().toISOString(),
-      metrics: {
-        price: quote.close,
-        previousClose,
-        volume: quote.volume,
-        ma5: Number(ma5.toFixed(2)),
-        ma20: Number(ma20.toFixed(2)),
-        ma60: Number(ma60.toFixed(2)),
-        rsi: Number(rsi.toFixed(1)),
-        dividendYield,
-        discountPremium,
-      },
-    };
+    return buildSnapshotFromQuote({ ...quote, name: quote.name });
   });
+}
+
+export async function searchStocks(query: string): Promise<SearchResult[]> {
+  const normalized = query.trim();
+  if (!normalized) return [];
+
+  const quotes = await fetchQuotes();
+  return Object.values(quotes)
+    .filter((quote) => quote.ticker.includes(normalized) || quote.name.includes(normalized))
+    .slice(0, 12)
+    .map((quote) => ({ ticker: quote.ticker, name: quote.name }));
+}
+
+export async function getSnapshotByTicker(ticker: string): Promise<AssetSnapshot | null> {
+  const quotes = await fetchQuotes();
+  const quote = quotes[ticker];
+  if (!quote) return null;
+  return buildSnapshotFromQuote(quote);
 }

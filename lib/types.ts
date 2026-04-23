@@ -10,6 +10,7 @@ export interface AssetDefinition {
   ticker: string;
   name: string;
   category: AssetCategory;
+  isCore?: boolean;
 }
 
 export interface AssetMetrics {
@@ -38,6 +39,7 @@ export interface SignalOutput {
 
 export interface EvaluatedAsset extends AssetSnapshot {
   signal: SignalOutput;
+  isCore?: boolean;
 }
 
 export interface AlertItem {
@@ -69,4 +71,9 @@ export interface LiveQuote {
   low: number;
   close: number;
   change: number;
+}
+
+export interface SearchResult {
+  ticker: string;
+  name: string;
 }

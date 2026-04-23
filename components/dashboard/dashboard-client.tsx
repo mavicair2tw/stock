@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { Activity, Bell, RefreshCcw, Search } from 'lucide-react';
-import { useMemo } from 'react';
+import { Activity, Bell, Plus, RefreshCcw, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDashboardControls } from '@/hooks/use-dashboard-controls';
-import { AlertItem, EvaluatedAsset, MarketRegime, RulesConfig } from '@/lib/types';
+import { AlertItem, EvaluatedAsset, MarketRegime, RulesConfig, SearchResult } from '@/lib/types';
 
 interface DashboardClientProps {
   assets: EvaluatedAsset[];
@@ -24,16 +24,42 @@ interface DashboardClientProps {
 
 export function DashboardClient({ assets, alerts, marketRegime, marketSummary, rules, updatedAt }: DashboardClientProps) {
   const { search, setSearch, normalizedSearch, autoRefresh, setAutoRefresh } = useDashboardControls();
+  const [monitoredAssets, setMonitoredAssets] = useState(assets);
+  const [stockQuery, setStockQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const filteredAssets = useMemo(() => {
-    if (!normalizedSearch) return assets;
-    return assets.filter((asset) => [asset.ticker, asset.name, asset.category].join(' ').toLowerCase().includes(normalizedSearch));
-  }, [assets, normalizedSearch]);
+    const pool = monitoredAssets;
+    if (!normalizedSearch) return pool;
+    return pool.filter((asset) => [asset.ticker, asset.name, asset.category].join(' ').toLowerCase().includes(normalizedSearch));
+  }, [monitoredAssets, normalizedSearch]);
 
-  const buyCount = assets.filter((asset) => asset.signal.action === 'BUY').length;
-  const sellCount = assets.filter((asset) => asset.signal.action === 'SELL').length;
-  const watchCount = assets.filter((asset) => asset.signal.action === 'WATCH').length;
-  const sentiment = Math.round(assets.reduce((sum, asset) => sum + asset.signal.score, 0) / assets.length);
+  const buyCount = monitoredAssets.filter((asset) => asset.signal.action === 'BUY').length;
+  const sellCount = monitoredAssets.filter((asset) => asset.signal.action === 'SELL').length;
+  const watchCount = monitoredAssets.filter((asset) => asset.signal.action === 'WATCH').length;
+  const sentiment = Math.round(monitoredAssets.reduce((sum, asset) => sum + asset.signal.score, 0) / monitoredAssets.length);
+
+  async function handleSearchStock() {
+    if (!stockQuery.trim()) return;
+    setSearching(true);
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(stockQuery.trim())}`);
+      const payload = (await response.json()) as { results: SearchResult[] };
+      setSearchResults(payload.results ?? []);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function addToMonitor(result: SearchResult) {
+    if (monitoredAssets.some((asset) => asset.ticker === result.ticker)) return;
+    const existing = assets.find((asset) => asset.ticker === result.ticker);
+    if (existing) {
+      setMonitoredAssets((current) => [existing, ...current]);
+      return;
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100 md:px-8">
@@ -48,7 +74,7 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
             <div className="grid gap-3 sm:grid-cols-[minmax(260px,1fr)_auto_auto]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search ticker or category" className="pl-10" />
+                <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search monitored assets" className="pl-10" />
               </div>
               <Button type="button" className="gap-2"><RefreshCcw className="h-4 w-4" /> Refresh</Button>
               <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-2">
@@ -64,6 +90,33 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
             <span>{marketSummary}</span>
           </div>
         </motion.header>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Add stock code to monitor</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row">
+              <Input value={stockQuery} onChange={(event) => setStockQuery(event.target.value)} placeholder="Search stock code or name" />
+              <Button type="button" onClick={handleSearchStock} disabled={searching}>{searching ? 'Searching...' : 'Search'}</Button>
+            </div>
+            {searchResults.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {searchResults.map((result) => (
+                  <div key={result.ticker} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                    <div>
+                      <p className="font-semibold text-white">{result.ticker}</p>
+                      <p className="text-sm text-slate-400">{result.name}</p>
+                    </div>
+                    <Button type="button" className="gap-2" onClick={() => addToMonitor(result)}><Plus className="h-4 w-4" /> Add</Button>
+                  </div>
+                ))}
+              </div>
+            ) : stockQuery ? (
+              <p className="text-sm text-slate-400">No matching TWSE listings found yet.</p>
+            ) : null}
+          </CardContent>
+        </Card>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
@@ -100,7 +153,7 @@ export function DashboardClient({ assets, alerts, marketRegime, marketSummary, r
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm uppercase tracking-[0.24em] text-slate-400">{asset.category.replace('_', ' ')}</p>
-                          <CardTitle className="mt-2">{asset.ticker}</CardTitle>
+                          <CardTitle className="mt-2 flex items-center gap-2">{asset.ticker}{asset.isCore ? <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-300">Core</span> : null}</CardTitle>
                           <p className="mt-1 text-sm text-slate-400">{asset.name}</p>
                         </div>
                         <Badge variant={asset.signal.severity}>{asset.signal.action}</Badge>
